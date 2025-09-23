@@ -1,0 +1,36 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+package-lock.json
+.pnpm-debug.log*
+
+# TypeScript build output
+out/
+dist/
+*.tsbuildinfo
+
+# VS Code extension packaging
+*.vsix
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE configs
+.vscode/*
+!.vscode/extensions.json   # keep recommended extensions
+!.vscode/launch.json       # optional: keep launch configs
+!.vscode/settings.json     # optional: keep workspace settings
+
+# Test coverage
+coverage/
+*.lcov
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/

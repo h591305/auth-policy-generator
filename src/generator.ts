@@ -37,10 +37,11 @@ export async function generateSecurityCode(yamlText: string, backendPath: string
   // Step 3: Prepare folders
   const controllerPath = path.join(baseJavaPath, 'controller');
   const dtoPath = path.join(baseJavaPath, 'dto');
+  const entitiesPath = path.join(baseJavaPath, 'entities');
   const securityPath = path.join(baseJavaPath, 'security');
   const resourcesPath = path.join(baseJavaPath, '..', '..', 'resources');
 
-  [controllerPath, dtoPath, securityPath, resourcesPath].forEach(p =>
+  [controllerPath, dtoPath, entitiesPath, securityPath, resourcesPath].forEach(p =>
     fs.mkdirSync(p, { recursive: true })
   );
 
@@ -55,6 +56,10 @@ export async function generateSecurityCode(yamlText: string, backendPath: string
     fs.writeFileSync(
       path.join(dtoPath, `${entityName}DTO.java`),
       generateDTO(entityName, pkg)
+    );
+     fs.writeFileSync(
+      path.join(entitiesPath, `${entityName}.java`),
+      generateEntity(entityName, pkg)
     );
   }
 
@@ -314,4 +319,20 @@ export default App;
 }
 
 
+
+function generateEntity(entityName: string, pkg: string): string | NodeJS.ArrayBufferView<ArrayBufferLike> {
+  return `
+package ${pkg}.entities;
+
+public class ${entityName} {
+    private Long id;
+    private String name;
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+}
+`.trim();
+}
 

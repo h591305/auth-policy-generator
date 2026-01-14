@@ -10,7 +10,9 @@ import { generateSecurityCode, createLoginPage } from './generator';
 export function activate(context: vscode.ExtensionContext) {
     let disposable = vscode.commands.registerCommand('mds.generateSecurityCode', async () => {
         const projectName = await vscode.window.showInputBox({ prompt: 'Enter project name' });
-        if (!projectName) return vscode.window.showErrorMessage('Project name is required!');
+        if (!projectName){ 
+          return vscode.window.showErrorMessage('Project name is required!');
+        }
 
         
         const yamlFile = await vscode.window.showOpenDialog({
@@ -24,7 +26,9 @@ export function activate(context: vscode.ExtensionContext) {
             canSelectFolders: true,
             openLabel: 'Select folder to create the project'
         });
-        if (!folderUri || folderUri.length === 0) return vscode.window.showErrorMessage('You must select a folder!');
+        if (!folderUri || folderUri.length === 0) {
+          return vscode.window.showErrorMessage('You must select a folder!');
+          }
 
         const projectPath = path.join(folderUri[0].fsPath, projectName);
         const backendPath = path.join(projectPath, 'backend');
@@ -54,10 +58,7 @@ export function activate(context: vscode.ExtensionContext) {
 
                 await downloadAndExtract(downloadUrl, backendPath);
 
-                // 2. Configure database
-                await configureDatabase(backendPath, projectName);
-
-                // 3. Generate Spring Boot security code from YAML (if exists)
+                // 2. Generate Spring Boot security code from YAML (if exists)
                 
                 const yamlPath = yamlFile[0].fsPath;
 
@@ -70,10 +71,10 @@ export function activate(context: vscode.ExtensionContext) {
                     vscode.window.showWarningMessage('No security.model.yaml found.');
                 }
 
-                // 4. Create React frontend
+                // 3. Create React frontend
                 await createReactFrontend(frontendPath);
 
-                // 5. Open folder in VSCode
+                // 4. Open folder in VSCode
                 vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(projectPath), true);
 
                 vscode.window.showInformationMessage(`Spring Boot project "${projectName}" created successfully!`);
@@ -88,7 +89,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 async function downloadAndExtract(url: string, folderPath: string) {
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`Failed to download project: ${res.status} ${res.statusText}`);
+    if (!res.ok) {
+      throw new Error(`Failed to download project: ${res.status} ${res.statusText}`);
+    }
     const buffer = await res.arrayBuffer();
     const stream = Readable.from(Buffer.from(buffer));
 
@@ -138,28 +141,6 @@ async function createReactFrontend(frontendPath: string) {
       });
     });
   });
-}
-
-
-async function configureDatabase(backendPath: string, projectName: string) {
-    const resourcesPath = path.join(backendPath, projectName, 'src', 'main', 'resources');
-    fs.mkdirSync(resourcesPath, { recursive: true });
-
-    const props = `
-!H2 Database Setup
-spring.datasource.url=jdbc:h2:mem:testdb
-spring.datasource.driverClassName=org.h2.Driver
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
- 
-!GitHub setup for OAuth2
-spring.security.oauth2.client.registration.github.client-id=Ov23li8ddoIf4miAqvCI
-spring.security.oauth2.client.registration.github.client-secret=50a86d4aad31d249f0a7f7b587b8578f97b8d279
-spring.security.oauth2.client.registration.github.scope=read:user,user:email
-
-`;
-
-    fs.writeFileSync(path.join(resourcesPath, 'application.properties'), props.trim());
 }
 
 export function deactivate() {}

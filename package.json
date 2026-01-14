@@ -15,7 +15,7 @@
     "commands": [
       {
         "command": "mds.generateSecurityCode",
-        "title": "Something"
+        "title": "Generate security code from YAML"
       }
     ]
   },

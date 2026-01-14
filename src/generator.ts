@@ -1,8 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
+import { IdempotencyParameterMismatch } from '@aws-sdk/client-s3';
+
 
 export async function generateSecurityCode(yamlText: string, backendPath: string, projectName: string) {
+
+
   const model = yaml.load(yamlText) as any;
   if (!model.entities || !model.roles) {
     throw new Error('Invalid model: entities and roles required');
@@ -28,50 +32,59 @@ export async function generateSecurityCode(yamlText: string, backendPath: string
   const artifactFolder = artifactFolders[0]; // e.g., "demoapp"
   const baseJavaPath = path.join(exampleFolder, artifactFolder);
 
-  // Step 2: Compute Java package string
+  // Compute Java package string
   const pkg = baseJavaPath
     .replace(/^.*src[\/\\]main[\/\\]java[\/\\]/, '')
     .split(path.sep)
     .join('.');
 
-  // Step 3: Prepare folders
+  // Prepare folders
   const controllerPath = path.join(baseJavaPath, 'controller');
   const dtoPath = path.join(baseJavaPath, 'dto');
   const entitiesPath = path.join(baseJavaPath, 'entities');
   const securityPath = path.join(baseJavaPath, 'security');
-  const resourcesPath = path.join(baseJavaPath, '..', '..', 'resources');
+  const resourcesPath = path.join(baseJavaPath, '..', '..', '..', '..', 'resources');
 
   [controllerPath, dtoPath, entitiesPath, securityPath, resourcesPath].forEach(p =>
     fs.mkdirSync(p, { recursive: true })
   );
 
-  // Step 4: Generate entities/controllers
+  // Generate entities, controllers, DTOs
   for (const entityName of Object.keys(model.entities)) {
-    const permissions = model.entities[entityName].permissions;
+  
+    const entityObj = Object.assign({}, ...model.entities[entityName]);
+
+  
 
     fs.writeFileSync(
       path.join(controllerPath, `${entityName}Controller.java`),
-      generateController(entityName, permissions, pkg)
+      generateController(entityName, pkg)
     );
     fs.writeFileSync(
       path.join(dtoPath, `${entityName}DTO.java`),
-      generateDTO(entityName, pkg)
+      generateDTO(entityName, entityObj, pkg)
     );
-     fs.writeFileSync(
+    fs.writeFileSync(
       path.join(entitiesPath, `${entityName}.java`),
-      generateEntity(entityName, pkg)
+      generateEntity(entityName, entityObj, pkg)
     );
+
+
   }
 
-  // Step 5: Generate security classes
-  fs.writeFileSync(path.join(securityPath, 'SecurityConfig.java'), generateSecurityConfig(pkg));
-  fs.writeFileSync(path.join(securityPath, 'WebConfig.java'), generateWebConfig(pkg));
+  // Generate security classes
+   fs.writeFileSync(path.join(securityPath, 'SecurityConfig.java'), generateSecurityConfig(pkg));
+   fs.writeFileSync(path.join(securityPath, 'WebConfig.java'), generateWebConfig(pkg));
 
-  console.log(`Security and DTO files generated under package: ${pkg}`);
+
+    //Configure application.proporties
+   const database =  model.oauth2; 
+    fs.appendFileSync(path.join(resourcesPath, 'application.properties'), configureDatabase(pkg, database));
+
 }
 
-// Example generator functions
-function generateController(entityName: string, permissions: any, pkg: string) {
+
+function generateController(entityName: string, pkg: string) {
   const lower = entityName.toLowerCase();
   return `
 package ${pkg}.controller;
@@ -87,23 +100,67 @@ public class ${entityName}Controller {
 `.trim();
 }
 
-function generateDTO(entityName: string, pkg: string) {
+function generateDTO(entityName: string, entity: Object, pkg: string): string {
+  
+    const vars = Object.entries(entity).map(([fieldName, fieldType]) => {
+
+    fieldType = fieldType.charAt(0).toUpperCase() + fieldType.slice(1);
+   return `private ${fieldType} ${fieldName};`;
+}). join('\n');
+
+  const methods = Object.entries(entity).map(([fieldName, fieldType]) => {
+  
+    fieldType = fieldType.charAt(0).toUpperCase() + fieldType.slice(1);
+   return `public ${fieldType} get${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}(){ return ${fieldName}; }
+     public void set${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}(${fieldType} ${fieldName}) { this.${fieldName} =  ${fieldName}; }`;
+}).join("\n");
+  
+  
   return `
 package ${pkg}.dto;
 
 public class ${entityName}DTO {
-    private Long id;
-    private String name;
+   
+  ${vars}
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+  ${methods}
+}
+`.trim();
+}
+
+
+function generateEntity(entityName: string, entity: Object,  pkg: string): string {
+
+  const vars = Object.entries(entity).map(([fieldName, fieldType]) => {
+
+    fieldType = fieldType.charAt(0).toUpperCase() + fieldType.slice(1);
+   return `private ${fieldType} ${fieldName};`;
+}). join('\n');
+
+  const methods = Object.entries(entity).map(([fieldName, fieldType]) => {
+  
+    fieldType = fieldType.charAt(0).toUpperCase() + fieldType.slice(1);
+   return `public ${fieldType} get${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}(){ return ${fieldName}; }
+     public void set${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}(${fieldType} ${fieldName}) { this.${fieldName} =  ${fieldName}; }`;
+}).join("\n");
+  
+  
+  return `
+package ${pkg}.entities;
+
+public class ${entityName} {
+
+  ${vars}
+
+
+  ${methods}
 }
 `.trim();
 }
 
 function generateSecurityConfig(pkg: string) {
+
+
   return `
 package ${pkg}.security;
 
@@ -155,6 +212,35 @@ public class WebConfig {
 }
 `.trim();
 }
+
+ function configureDatabase(pkg: string, database: Object) {
+
+  const oauthConfig = Object.entries(database).map(([providerKey , providerVal]) => {
+
+    const {name, ...rest} = providerVal;
+
+    return Object.entries(rest)
+                        .map(([key,val]) => `spring.security.oauth2.client.registration.${name.toLowerCase()}.${key}=${val}`)
+                        .join('\n');
+
+  })
+  .join('\n\n'); 
+
+    return `
+!H2 Database Setup
+spring.datasource.url=jdbc:h2:mem:testdb
+spring.datasource.driverClassName=org.h2.Driver
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+ 
+
+${oauthConfig}
+
+`;
+
+
+}
+
 
 
 
@@ -318,21 +404,4 @@ export default App;
     }
 }
 
-
-
-function generateEntity(entityName: string, pkg: string): string | NodeJS.ArrayBufferView<ArrayBufferLike> {
-  return `
-package ${pkg}.entities;
-
-public class ${entityName} {
-    private Long id;
-    private String name;
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-}
-`.trim();
-}
 

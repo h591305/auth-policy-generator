@@ -8,8 +8,8 @@ export async function generateSecurityCode(yamlText: string, backendPath: string
 
 
   const model = yaml.load(yamlText) as any;
-  if (!model.entities || !model.roles) {
-    throw new Error('Invalid model: entities and roles required');
+  if (!model.entities) {
+    throw new Error('Invalid model: entities required');
   }
 
   // Step 1: Detect the actual Java package folder
@@ -142,14 +142,19 @@ function generateEntity(entityName: string, entity: Object,  pkg: string): strin
     fieldType = fieldType.charAt(0).toUpperCase() + fieldType.slice(1);
    return `public ${fieldType} get${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}(){ return ${fieldName}; }
      public void set${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}(${fieldType} ${fieldName}) { this.${fieldName} =  ${fieldName}; }`;
-}).join("\n");
+}).join("\n\n");
   
   
   return `
 package ${pkg}.entities;
 
+import jakarta.persistence.*;
+
+@Entity
 public class ${entityName} {
 
+  @Id
+  @GeneratedValue
   ${vars}
 
 
@@ -177,7 +182,7 @@ public class SecurityConfig {
    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
-            .oauth2Login(oauth2 -> oauth2.defaultSuccessUrl("/api/hello", true));
+            .oauth2Login(oauth2 -> oauth2.defaultSuccessUrl("/api/**", true));
         return http.build();
     }
 }

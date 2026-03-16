@@ -10,7 +10,7 @@ The generator produces a full-stack web application where authentication mechani
 
 The system consists of three main components:
 
-- **Model specification (YAML DSL)** – Defines domain entities and authentication configuration
+- **Model specification (YAML)** – Defines domain entities and authentication configuration
 - **VS Code Extension** – Parses the model and performs model-to-text transformations
 - **Generated Application** – A full-stack application consisting of a Spring Boot backend and a React frontend
 

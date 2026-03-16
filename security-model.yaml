@@ -1,0 +1,16 @@
+entities:
+  User:
+    - id: integer
+    - name: string
+
+  Document:
+    - id: integer
+    - title: string
+
+
+oauth2:
+  provider:
+    name: GitHub
+    client-id: Fill in
+    client-secret: Fill in
+    scope: Fill in

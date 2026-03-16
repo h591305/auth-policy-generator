@@ -1,4 +1,4 @@
-# Auth Policy Generator
+# Authentication Policy Generator
 
 This repository contains a model-driven authentication policy generator developed as part of a master's thesis research project. The system demonstrates how authentication configuration can be defined at the modelling level and automatically transformed into executable application code.
 
